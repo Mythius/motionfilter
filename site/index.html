@@ -1,0 +1,100 @@
+<link rel="icon" type="image/x-icon" href="icon.png" />
+<style>
+  body {
+    margin: 0;
+  }
+  canvas {
+    width: 400px;
+    height: 225px;
+  }
+</style>
+<script src="helpers.js"></script>
+<video id="video" src="Snow.mp4" width="400"></video>
+<div></div>
+<canvas id="dc" width="800" height="450"></canvas>
+<script>
+  const video = obj("video");
+  let videofilter;
+
+  const dc = obj("#dc");
+  const dctx = dc.getContext("2d");
+
+  let started = false;
+
+  function main() {
+    if (started) return;
+    started = true;
+    videofilter = new getDelta(video);
+    obj("div").appendChild(videofilter.canvas);
+    videofilter.start();
+    dc.width = video.videoWidth;
+    dc.height = video.videoHeight;
+  }
+
+  document.on("click", main);
+
+  class getDelta {
+    constructor(video) {
+      this.canvas = create("canvas");
+      this.canvas.width = video.videoWidth;
+      this.canvas.height = video.videoHeight;
+      this.ctx = this.canvas.getContext("2d", { willReadFrequently: true });
+      this.video = video;
+      this.delta0;
+      this.delta1;
+      this.delta2;
+      this.allDifs = [];
+    }
+    start() {
+      this.video.play();
+      requestAnimationFrame(() => {
+        this.update();
+      });
+    }
+    update() {
+      this.ctx.drawImage(video, 0, 0, this.canvas.width, this.canvas.height);
+      this._deltashift();
+      this.delta0 = this.ctx.getImageData(
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
+      if (this.delta0 && this.delta1) this.getDif();
+
+      requestAnimationFrame(() => {
+        this.update();
+      });
+    }
+    getDif(threshold = 50) {
+      let copy = this.ctx.getImageData(
+        0,
+        0,
+        this.canvas.width,
+        this.canvas.height
+      );
+      for (let i = 0; i < this.delta0.data.length; i += 4) {
+        let c1 = Math.abs(this.delta0.data[i + 0] - this.delta1.data[i + 0]);
+        let c2 = Math.abs(this.delta0.data[i + 1] - this.delta1.data[i + 1]);
+        let c3 = Math.abs(this.delta0.data[i + 2] - this.delta1.data[i + 2]);
+        let c4 = Math.abs(this.delta0.data[i + 2] - this.delta1.data[i + 3]);
+        let sum = (c1 + c2 + c3) / 3;
+        // if (i < 5000000) {
+        if (sum < threshold) {
+          copy.data[i] = 0;
+          copy.data[i + 1] = 0;
+          copy.data[i + 2] = 0;
+        }
+      }
+      dctx.putImageData(copy, 0, 0);
+    }
+    _deltashift() {
+      this.delta2 = this.delta1;
+      this.delta1 = this.delta0;
+    }
+    _copyImageData(img_data) {
+      var dst = img_data;
+      dst.data.set();
+    }
+  }
+</script>
